@@ -426,7 +426,7 @@ export function unhideTextInstance(textInstance, text): void {
   // Noop
 }
 
-export function mountResponderInstance(
+export function DEPRECATED_mountResponderInstance(
   responder: ReactEventResponder<any, any>,
   responderInstance: ReactEventResponderInstance<any, any>,
   props: Object,
@@ -436,7 +436,7 @@ export function mountResponderInstance(
   throw new Error('Not yet implemented.');
 }
 
-export function unmountResponderInstance(
+export function DEPRECATED_unmountResponderInstance(
   responderInstance: ReactEventResponderInstance<any, any>,
 ): void {
   throw new Error('Not yet implemented.');
@@ -459,5 +459,29 @@ export function updateFundamentalComponent(fundamentalInstance) {
 }
 
 export function unmountFundamentalComponent(fundamentalInstance) {
+  throw new Error('Not yet implemented.');
+}
+
+export function getInstanceFromNode(node) {
+  throw new Error('Not yet implemented.');
+}
+
+export function beforeRemoveInstance(instance) {
+  // noop
+}
+
+export function registerEvent(event: any, rootContainerInstance: any) {
+  throw new Error('Not yet implemented.');
+}
+
+export function mountEventListener(listener: any) {
+  throw new Error('Not yet implemented.');
+}
+
+export function unmountEventListener(listener: any) {
+  throw new Error('Not yet implemented.');
+}
+
+export function validateEventListenerTarget(target: any, listener: any) {
   throw new Error('Not yet implemented.');
 }

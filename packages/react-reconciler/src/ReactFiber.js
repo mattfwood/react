@@ -28,15 +28,16 @@ import type {HookType} from './ReactFiberHooks';
 import type {SuspenseInstance} from './ReactFiberHostConfig';
 
 import invariant from 'shared/invariant';
-import warningWithoutStack from 'shared/warningWithoutStack';
 import {
   enableProfilerTimer,
   enableFundamentalAPI,
   enableUserTimingAPI,
   enableScopeAPI,
+  enableBlocksAPI,
+  throwEarlyForMysteriousError,
 } from 'shared/ReactFeatureFlags';
 import {NoEffect, Placement} from 'shared/ReactSideEffectTags';
-import {ConcurrentRoot, BatchedRoot} from 'shared/ReactRootTags';
+import {ConcurrentRoot, BlockingRoot} from 'shared/ReactRootTags';
 import {
   IndeterminateComponent,
   ClassComponent,
@@ -59,6 +60,7 @@ import {
   LazyComponent,
   FundamentalComponent,
   ScopeComponent,
+  Block,
 } from 'shared/ReactWorkTags';
 import getComponentName from 'shared/getComponentName';
 
@@ -74,7 +76,7 @@ import {
   ConcurrentMode,
   ProfileMode,
   StrictMode,
-  BatchedMode,
+  BlockingMode,
 } from './ReactTypeOfMode';
 import {
   REACT_FORWARD_REF_TYPE,
@@ -90,6 +92,7 @@ import {
   REACT_LAZY_TYPE,
   REACT_FUNDAMENTAL_TYPE,
   REACT_SCOPE_TYPE,
+  REACT_BLOCK_TYPE,
 } from 'shared/ReactSymbols';
 
 let hasBadMapPolyfill;
@@ -118,6 +121,7 @@ export type Dependencies = {
     ReactEventResponder<any, any>,
     ReactEventResponderInstance<any, any>,
   > | null,
+  ...
 };
 
 // A Fiber is work on a Component that needs to be done or was done. There can
@@ -168,7 +172,10 @@ export type Fiber = {|
 
   // The ref last used to attach this node.
   // I'll avoid adding an owner field for prod and model that as functions.
-  ref: null | (((handle: mixed) => void) & {_stringRef: ?string}) | RefObject,
+  ref:
+    | null
+    | (((handle: mixed) => void) & {_stringRef: ?string, ...})
+    | RefObject,
 
   // Input is the data coming into process this fiber. Arguments. Props.
   pendingProps: any, // This type will be more specific once we overload the tag.
@@ -385,16 +392,17 @@ export function resolveLazyComponentTag(Component: Function): WorkTag {
     if ($$typeof === REACT_MEMO_TYPE) {
       return MemoComponent;
     }
+    if (enableBlocksAPI) {
+      if ($$typeof === REACT_BLOCK_TYPE) {
+        return Block;
+      }
+    }
   }
   return IndeterminateComponent;
 }
 
 // This is used to create an alternate fiber to do work on.
-export function createWorkInProgress(
-  current: Fiber,
-  pendingProps: any,
-  expirationTime: ExpirationTime,
-): Fiber {
+export function createWorkInProgress(current: Fiber, pendingProps: any): Fiber {
   let workInProgress = current.alternate;
   if (workInProgress === null) {
     // We use a double buffering pooling technique because we know that we'll
@@ -414,7 +422,9 @@ export function createWorkInProgress(
 
     if (__DEV__) {
       // DEV-only fields
-      workInProgress._debugID = current._debugID;
+      if (enableUserTimingAPI) {
+        workInProgress._debugID = current._debugID;
+      }
       workInProgress._debugSource = current._debugSource;
       workInProgress._debugOwner = current._debugOwner;
       workInProgress._debugHookTypes = current._debugHookTypes;
@@ -441,6 +451,18 @@ export function createWorkInProgress(
       // But works for yielding (the common case) and should support resuming.
       workInProgress.actualDuration = 0;
       workInProgress.actualStartTime = -1;
+    }
+  }
+
+  if (throwEarlyForMysteriousError) {
+    // Trying to debug a mysterious internal-only production failure.
+    // See D20130868 and t62461245.
+    // This is only on for RN FB builds.
+    if (current == null) {
+      throw Error('current is ' + current + " but it can't be");
+    }
+    if (workInProgress == null) {
+      throw Error('workInProgress is ' + workInProgress + " but it can't be");
     }
   }
 
@@ -573,9 +595,9 @@ export function resetWorkInProgress(
 export function createHostRootFiber(tag: RootTag): Fiber {
   let mode;
   if (tag === ConcurrentRoot) {
-    mode = ConcurrentMode | BatchedMode | StrictMode;
-  } else if (tag === BatchedRoot) {
-    mode = BatchedMode | StrictMode;
+    mode = ConcurrentMode | BlockingMode | StrictMode;
+  } else if (tag === BlockingRoot) {
+    mode = BlockingMode | StrictMode;
   } else {
     mode = NoMode;
   }
@@ -627,7 +649,7 @@ export function createFiberFromTypeAndProps(
         );
       case REACT_CONCURRENT_MODE_TYPE:
         fiberTag = Mode;
-        mode |= ConcurrentMode | BatchedMode | StrictMode;
+        mode |= ConcurrentMode | BlockingMode | StrictMode;
         break;
       case REACT_STRICT_MODE_TYPE:
         fiberTag = Mode;
@@ -666,6 +688,9 @@ export function createFiberFromTypeAndProps(
             case REACT_LAZY_TYPE:
               fiberTag = LazyComponent;
               resolvedType = null;
+              break getTag;
+            case REACT_BLOCK_TYPE:
+              fiberTag = Block;
               break getTag;
             case REACT_FUNDAMENTAL_TYPE:
               if (enableFundamentalAPI) {
@@ -801,14 +826,8 @@ function createFiberFromProfiler(
   key: null | string,
 ): Fiber {
   if (__DEV__) {
-    if (
-      typeof pendingProps.id !== 'string' ||
-      typeof pendingProps.onRender !== 'function'
-    ) {
-      warningWithoutStack(
-        false,
-        'Profiler must specify an "id" string and "onRender" function as props',
-      );
+    if (typeof pendingProps.id !== 'string') {
+      console.error('Profiler must specify an "id" as a prop');
     }
   }
 
@@ -817,6 +836,13 @@ function createFiberFromProfiler(
   fiber.elementType = REACT_PROFILER_TYPE;
   fiber.type = REACT_PROFILER_TYPE;
   fiber.expirationTime = expirationTime;
+
+  if (enableProfilerTimer) {
+    fiber.stateNode = {
+      effectDuration: 0,
+      passiveEffectDuration: 0,
+    };
+  }
 
   return fiber;
 }
@@ -945,10 +971,12 @@ export function assignFiberPropertiesInDEV(
     target.selfBaseDuration = source.selfBaseDuration;
     target.treeBaseDuration = source.treeBaseDuration;
   }
-  target._debugID = source._debugID;
+  if (enableUserTimingAPI) {
+    target._debugID = source._debugID;
+    target._debugIsCurrentlyTiming = source._debugIsCurrentlyTiming;
+  }
   target._debugSource = source._debugSource;
   target._debugOwner = source._debugOwner;
-  target._debugIsCurrentlyTiming = source._debugIsCurrentlyTiming;
   target._debugNeedsRemount = source._debugNeedsRemount;
   target._debugHookTypes = source._debugHookTypes;
   return target;

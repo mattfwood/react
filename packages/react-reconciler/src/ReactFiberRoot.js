@@ -25,14 +25,8 @@ import {
 } from 'shared/ReactFeatureFlags';
 import {unstable_getThreadID} from 'scheduler/tracing';
 import {NoPriority} from './SchedulerWithReactIntegration';
-
-// TODO: This should be lifted into the renderer.
-export type Batch = {
-  _defer: boolean,
-  _expirationTime: ExpirationTime,
-  _onComplete: () => mixed,
-  _next: Batch | null,
-};
+import {initializeUpdateQueue} from './ReactUpdateQueue';
+import {clearPendingUpdates as clearPendingMutableSourceUpdates} from './ReactMutableSource';
 
 export type PendingInteractionMap = Map<ExpirationTime, Set<Interaction>>;
 
@@ -63,10 +57,6 @@ type BaseFiberRootProperties = {|
   pendingContext: Object | null,
   // Determines if we should attempt to hydrate on the initial mount
   +hydrate: boolean,
-  // List of top-level batches. This list indicates whether a commit should be
-  // deferred. Also contains completion callbacks.
-  // TODO: Lift this into the renderer
-  firstBatch: Batch | null,
   // Node returned by Scheduler.scheduleCallback
   callbackNode: *,
   // Expiration of the callback associated with this root
@@ -85,6 +75,9 @@ type BaseFiberRootProperties = {|
   // render again
   lastPingedTime: ExpirationTime,
   lastExpiredTime: ExpirationTime,
+  // Used by useMutableSource hook to avoid tearing within this root
+  // when external, mutable sources are read from during render.
+  mutableSourcePendingUpdateTime: ExpirationTime,
 |};
 
 // The following attributes are only used by interaction tracing builds.
@@ -111,6 +104,7 @@ export type FiberRoot = {
   ...BaseFiberRootProperties,
   ...ProfilingOnlyFiberRootProperties,
   ...SuspenseCallbackOnlyFiberRootProperties,
+  ...
 };
 
 function FiberRootNode(containerInfo, tag, hydrate) {
@@ -125,7 +119,6 @@ function FiberRootNode(containerInfo, tag, hydrate) {
   this.context = null;
   this.pendingContext = null;
   this.hydrate = hydrate;
-  this.firstBatch = null;
   this.callbackNode = null;
   this.callbackPriority = NoPriority;
   this.firstPendingTime = NoWork;
@@ -134,6 +127,7 @@ function FiberRootNode(containerInfo, tag, hydrate) {
   this.nextKnownPendingLevel = NoWork;
   this.lastPingedTime = NoWork;
   this.lastExpiredTime = NoWork;
+  this.mutableSourcePendingUpdateTime = NoWork;
 
   if (enableSchedulerTracing) {
     this.interactionThreadID = unstable_getThreadID();
@@ -162,6 +156,8 @@ export function createFiberRoot(
   root.current = uninitializedFiber;
   uninitializedFiber.stateNode = root;
 
+  initializeUpdateQueue(uninitializedFiber);
+
   return root;
 }
 
@@ -173,8 +169,8 @@ export function isRootSuspendedAtTime(
   const lastSuspendedTime = root.lastSuspendedTime;
   return (
     firstSuspendedTime !== NoWork &&
-    (firstSuspendedTime >= expirationTime &&
-      lastSuspendedTime <= expirationTime)
+    firstSuspendedTime >= expirationTime &&
+    lastSuspendedTime <= expirationTime
   );
 }
 
@@ -258,6 +254,9 @@ export function markRootFinishedAtTime(
     // Clear the expired time
     root.lastExpiredTime = NoWork;
   }
+
+  // Clear any pending updates that were just processed.
+  clearPendingMutableSourceUpdates(root, finishedExpirationTime);
 }
 
 export function markRootExpiredAtTime(

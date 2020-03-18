@@ -33,13 +33,16 @@ describe('ReactDOMSuspensePlaceholder', () => {
     container = document.createElement('div');
     document.body.appendChild(container);
 
-    TextResource = ReactCache.unstable_createResource(([text, ms = 0]) => {
-      return new Promise((resolve, reject) =>
-        setTimeout(() => {
-          resolve(text);
-        }, ms),
-      );
-    }, ([text, ms]) => text);
+    TextResource = ReactCache.unstable_createResource(
+      ([text, ms = 0]) => {
+        return new Promise((resolve, reject) =>
+          setTimeout(() => {
+            resolve(text);
+          }, ms),
+        );
+      },
+      ([text, ms]) => text,
+    );
   });
 
   afterEach(() => {
@@ -102,29 +105,6 @@ describe('ReactDOMSuspensePlaceholder', () => {
     expect(window.getComputedStyle(divs[1].current).display).toEqual('block');
     // This div's display was set with a prop.
     expect(window.getComputedStyle(divs[2].current).display).toEqual('inline');
-  });
-
-  it('hides and unhides child portals', async () => {
-    const portalContainer = document.createElement('div');
-    function Component() {
-      return ReactDOM.createPortal(<span />, portalContainer);
-    }
-
-    function App() {
-      return (
-        <Suspense fallback={<Text text="Loading..." />}>
-          <AsyncText ms={500} text="A" />
-          <Component />
-        </Suspense>
-      );
-    }
-
-    ReactDOM.render(<App />, container);
-    expect(window.getComputedStyle(portalContainer).display).toEqual('none');
-
-    await advanceTimers(500);
-    Scheduler.unstable_flushAll();
-    expect(window.getComputedStyle(portalContainer).display).toEqual('block');
   });
 
   it('hides and unhides timed out text nodes', async () => {

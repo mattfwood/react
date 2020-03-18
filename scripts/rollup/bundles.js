@@ -76,6 +76,38 @@ const bundles = [
     externals: [],
   },
 
+  /******* React JSX Runtime *******/
+  {
+    bundleTypes: [
+      NODE_DEV,
+      NODE_PROD,
+      NODE_PROFILING,
+      FB_WWW_DEV,
+      FB_WWW_PROD,
+      FB_WWW_PROFILING,
+    ],
+    moduleType: ISOMORPHIC,
+    entry: 'react/jsx-runtime',
+    global: 'JSXRuntime',
+    externals: ['react'],
+  },
+
+  /******* React JSX DEV Runtime *******/
+  {
+    bundleTypes: [
+      NODE_DEV,
+      NODE_PROD,
+      NODE_PROFILING,
+      FB_WWW_DEV,
+      FB_WWW_PROD,
+      FB_WWW_PROFILING,
+    ],
+    moduleType: ISOMORPHIC,
+    entry: 'react/jsx-dev-runtime',
+    global: 'JSXDEVRuntime',
+    externals: ['react'],
+  },
+
   /******* React DOM *******/
   {
     bundleTypes: [
@@ -95,6 +127,16 @@ const bundles = [
     externals: ['react'],
   },
 
+  /******* React DOM - www - Uses forked reconciler *******/
+  {
+    moduleType: RENDERER,
+    bundleTypes: [FB_WWW_DEV, FB_WWW_PROD, FB_WWW_PROFILING],
+    entry: 'react-dom',
+    global: 'ReactDOMForked',
+    enableNewReconciler: true,
+    externals: ['react'],
+  },
+
   /******* Test Utils *******/
   {
     moduleType: RENDERER_UTILS,
@@ -104,16 +146,18 @@ const bundles = [
     externals: ['react', 'react-dom'],
   },
 
+  /******* React DOM - www - Testing *******/
+  {
+    moduleType: RENDERER,
+    bundleTypes: [FB_WWW_DEV, FB_WWW_PROD, FB_WWW_PROFILING],
+    entry: 'react-dom/testing',
+    global: 'ReactDOMTesting',
+    externals: ['react'],
+  },
+
   /* React DOM internals required for react-native-web (e.g., to shim native events from react-dom) */
   {
-    bundleTypes: [
-      UMD_DEV,
-      UMD_PROD,
-      NODE_DEV,
-      NODE_PROD,
-      FB_WWW_DEV,
-      FB_WWW_PROD,
-    ],
+    bundleTypes: [UMD_DEV, UMD_PROD, NODE_DEV, NODE_PROD],
     moduleType: RENDERER_UTILS,
     entry: 'react-dom/unstable-native-dependencies',
     global: 'ReactDOMUnstableNativeDependencies',
@@ -160,13 +204,60 @@ const bundles = [
     moduleType: RENDERER,
     entry: 'react-dom/unstable-fizz.browser',
     global: 'ReactDOMFizzServer',
-    externals: ['react'],
+    externals: ['react', 'react-dom/server'],
   },
   {
-    bundleTypes: [NODE_DEV, NODE_PROD, FB_WWW_DEV, FB_WWW_PROD],
+    bundleTypes: [NODE_DEV, NODE_PROD],
     moduleType: RENDERER,
     entry: 'react-dom/unstable-fizz.node',
     global: 'ReactDOMFizzServer',
+    externals: ['react', 'react-dom/server'],
+  },
+
+  /******* React DOM Flight Server Webpack *******/
+  {
+    bundleTypes: [NODE_DEV, NODE_PROD, UMD_DEV, UMD_PROD],
+    moduleType: RENDERER,
+    entry: 'react-flight-dom-webpack/server.browser',
+    global: 'ReactFlightDOMServer',
+    externals: ['react', 'react-dom/server'],
+  },
+  {
+    bundleTypes: [NODE_DEV, NODE_PROD],
+    moduleType: RENDERER,
+    entry: 'react-flight-dom-webpack/server.node',
+    global: 'ReactFlightDOMServer',
+    externals: ['react', 'react-dom/server'],
+  },
+
+  /******* React DOM Flight Client Webpack *******/
+  {
+    bundleTypes: [NODE_DEV, NODE_PROD, UMD_DEV, UMD_PROD],
+    moduleType: RENDERER,
+    entry: 'react-flight-dom-webpack',
+    global: 'ReactFlightDOMClient',
+    externals: ['react'],
+  },
+
+  /******* React DOM Flight Server Relay *******/
+  {
+    bundleTypes: [FB_WWW_DEV, FB_WWW_PROD],
+    moduleType: RENDERER,
+    entry: 'react-flight-dom-relay/server',
+    global: 'ReactFlightDOMRelayServer',
+    externals: [
+      'react',
+      'react-dom/server',
+      'ReactFlightDOMRelayServerIntegration',
+    ],
+  },
+
+  /******* React DOM Flight Client Relay *******/
+  {
+    bundleTypes: [FB_WWW_DEV, FB_WWW_PROD],
+    moduleType: RENDERER,
+    entry: 'react-flight-dom-relay',
+    global: 'ReactFlightDOMRelayClient',
     externals: ['react'],
   },
 
@@ -268,7 +359,7 @@ const bundles = [
       }),
   },
   {
-    bundleTypes: [FB_WWW_DEV, NODE_DEV, NODE_PROD, UMD_DEV, UMD_PROD],
+    bundleTypes: [UMD_DEV, UMD_PROD],
     moduleType: NON_FIBER_RENDERER,
     entry: 'react-test-renderer/shallow',
     global: 'ReactShallowRenderer',
@@ -308,6 +399,24 @@ const bundles = [
     externals: ['react', 'scheduler', 'expect'],
   },
 
+  /******* React Noop Flight Server (used for tests) *******/
+  {
+    bundleTypes: [NODE_DEV, NODE_PROD],
+    moduleType: RENDERER,
+    entry: 'react-noop-renderer/flight-server',
+    global: 'ReactNoopFlightServer',
+    externals: ['react', 'scheduler', 'expect'],
+  },
+
+  /******* React Noop Flight Client (used for tests) *******/
+  {
+    bundleTypes: [NODE_DEV, NODE_PROD],
+    moduleType: RENDERER,
+    entry: 'react-noop-renderer/flight-client',
+    global: 'ReactNoopFlightClient',
+    externals: ['react', 'scheduler', 'expect'],
+  },
+
   /******* React Reconciler *******/
   {
     bundleTypes: [NODE_DEV, NODE_PROD],
@@ -317,21 +426,30 @@ const bundles = [
     externals: ['react'],
   },
 
-  /******* React Persistent Reconciler *******/
+  /******* React Server *******/
   {
     bundleTypes: [NODE_DEV, NODE_PROD],
     moduleType: RECONCILER,
-    entry: 'react-reconciler/persistent',
-    global: 'ReactPersistentReconciler',
+    entry: 'react-server',
+    global: 'ReactServer',
     externals: ['react'],
   },
 
-  /******* React Stream *******/
+  /******* React Flight Server *******/
   {
     bundleTypes: [NODE_DEV, NODE_PROD],
     moduleType: RECONCILER,
-    entry: 'react-stream',
-    global: 'ReactStream',
+    entry: 'react-server/flight',
+    global: 'ReactFlightServer',
+    externals: ['react'],
+  },
+
+  /******* React Flight Client *******/
+  {
+    bundleTypes: [NODE_DEV, NODE_PROD],
+    moduleType: RECONCILER,
+    entry: 'react-client/flight',
+    global: 'ReactFlightClient',
     externals: ['react'],
   },
 
@@ -442,14 +560,14 @@ const bundles = [
 
   /******* Jest React (experimental) *******/
   {
-    bundleTypes: [NODE_DEV, NODE_PROD, FB_WWW_DEV, FB_WWW_PROD],
+    bundleTypes: [NODE_DEV, NODE_PROD],
     moduleType: ISOMORPHIC,
     entry: 'jest-react',
     global: 'JestReact',
     externals: [],
   },
 
-  /******* ESLint Plugin for Hooks (proposal) *******/
+  /******* ESLint Plugin for Hooks *******/
   {
     // TODO: it's awkward to create a bundle for this but if we don't, the package
     // won't get copied. We also can't create just DEV bundle because it contains a
@@ -520,21 +638,6 @@ const bundles = [
       FB_WWW_PROD,
     ],
     moduleType: NON_FIBER_RENDERER,
-    entry: 'react-interactions/events/drag',
-    global: 'ReactEventsDrag',
-    externals: ['react'],
-  },
-
-  {
-    bundleTypes: [
-      UMD_DEV,
-      UMD_PROD,
-      NODE_DEV,
-      NODE_PROD,
-      FB_WWW_DEV,
-      FB_WWW_PROD,
-    ],
-    moduleType: NON_FIBER_RENDERER,
     entry: 'react-interactions/events/focus',
     global: 'ReactEventsFocus',
     externals: ['react'],
@@ -565,43 +668,9 @@ const bundles = [
       FB_WWW_PROD,
     ],
     moduleType: NON_FIBER_RENDERER,
-    entry: 'react-interactions/events/input',
-    global: 'ReactEventsInput',
-    externals: ['react'],
-  },
-
-  {
-    bundleTypes: [
-      UMD_DEV,
-      UMD_PROD,
-      NODE_DEV,
-      NODE_PROD,
-      FB_WWW_DEV,
-      FB_WWW_PROD,
-    ],
-    moduleType: NON_FIBER_RENDERER,
     entry: 'react-interactions/events/keyboard',
     global: 'ReactEventsKeyboard',
     externals: ['react'],
-  },
-
-  {
-    bundleTypes: [
-      UMD_DEV,
-      UMD_PROD,
-      NODE_DEV,
-      NODE_PROD,
-      FB_WWW_DEV,
-      FB_WWW_PROD,
-    ],
-    moduleType: NON_FIBER_RENDERER,
-    entry: 'react-interactions/events/press',
-    global: 'ReactEventsPress',
-    externals: [
-      'react',
-      'react-interactions/events/tap',
-      'react-interactions/events/keyboard',
-    ],
   },
 
   {
@@ -618,116 +687,12 @@ const bundles = [
     global: 'ReactEventsPressLegacy',
     externals: ['react'],
   },
-
-  {
-    bundleTypes: [
-      UMD_DEV,
-      UMD_PROD,
-      NODE_DEV,
-      NODE_PROD,
-      FB_WWW_DEV,
-      FB_WWW_PROD,
-    ],
-    moduleType: NON_FIBER_RENDERER,
-    entry: 'react-interactions/events/scroll',
-    global: 'ReactEventsScroll',
-    externals: ['react'],
-  },
-
-  {
-    bundleTypes: [
-      UMD_DEV,
-      UMD_PROD,
-      NODE_DEV,
-      NODE_PROD,
-      FB_WWW_DEV,
-      FB_WWW_PROD,
-    ],
-    moduleType: NON_FIBER_RENDERER,
-    entry: 'react-interactions/events/swipe',
-    global: 'ReactEventsSwipe',
-    externals: ['react'],
-  },
-
-  {
-    bundleTypes: [
-      UMD_DEV,
-      UMD_PROD,
-      NODE_DEV,
-      NODE_PROD,
-      FB_WWW_DEV,
-      FB_WWW_PROD,
-    ],
-    moduleType: NON_FIBER_RENDERER,
-    entry: 'react-interactions/events/tap',
-    global: 'ReactEventsTap',
-    externals: ['react'],
-  },
-
-  // React UI - Accessibility
-
-  {
-    bundleTypes: [NODE_DEV, NODE_PROD, FB_WWW_DEV, FB_WWW_PROD],
-    moduleType: NON_FIBER_RENDERER,
-    entry: 'react-interactions/accessibility/focus-table',
-    global: 'ReactFocusTable',
-    externals: [
-      'react',
-      'react-interactions/events/keyboard',
-      'react-interactions/accessibility/tabbable-scope',
-      'react-interactions/accessibility/focus-control',
-    ],
-  },
-
-  {
-    bundleTypes: [NODE_DEV, NODE_PROD, FB_WWW_DEV, FB_WWW_PROD],
-    moduleType: NON_FIBER_RENDERER,
-    entry: 'react-interactions/accessibility/focus-contain',
-    global: 'ReactFocusContain',
-    externals: [
-      'react',
-      'react-interactions/events/focus',
-      'react-interactions/events/keyboard',
-      'react-interactions/accessibility/focus-manager',
-    ],
-  },
-
-  {
-    bundleTypes: [NODE_DEV, NODE_PROD, FB_WWW_DEV, FB_WWW_PROD],
-    moduleType: NON_FIBER_RENDERER,
-    entry: 'react-interactions/accessibility/focus-manager',
-    global: 'ReactFocusManager',
-    externals: ['react'],
-  },
-
-  {
-    bundleTypes: [NODE_DEV, NODE_PROD, FB_WWW_DEV, FB_WWW_PROD],
-    moduleType: NON_FIBER_RENDERER,
-    entry: 'react-interactions/accessibility/tabbable-scope',
-    global: 'ReactTabbableScope',
-    externals: ['react'],
-  },
-
-  {
-    bundleTypes: [NODE_DEV, NODE_PROD, FB_WWW_DEV, FB_WWW_PROD],
-    moduleType: NON_FIBER_RENDERER,
-    entry: 'react-interactions/accessibility/focus-group',
-    global: 'ReactFocusGroup',
-    externals: [
-      'react',
-      'react-interactions/events/keyboard',
-      'react-interactions/accessibility/tabbable-scope',
-      'react-interactions/accessibility/focus-manager',
-    ],
-  },
 ];
 
 const fbBundleExternalsMap = {
   'react-interactions/events/focus': 'ReactEventsFocus',
   'react-interactions/events/keyboard': 'ReactEventsKeyboard',
   'react-interactions/events/tap': 'ReactEventsTap',
-  'react-interactions/accessibility/tabbable-scope': 'ReactTabbableScope',
-  'react-interactions/accessibility/focus-manager': 'ReactFocusManager',
 };
 
 // Based on deep-freeze by substack (public domain)

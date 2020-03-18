@@ -7,7 +7,8 @@
  * @flow
  */
 
-import React, {Fragment, Suspense, useState} from 'react';
+import * as React from 'react';
+import {Fragment, Suspense, SuspenseList, useState} from 'react';
 
 function SuspenseTree() {
   return (
@@ -18,6 +19,7 @@ function SuspenseTree() {
       <h4>Fallback to Primary Cycle</h4>
       <PrimaryFallbackTest initialSuspend={true} />
       <NestedSuspenseTest />
+      <SuspenseListTest />
     </Fragment>
   );
 }
@@ -102,8 +104,31 @@ function Parent() {
   );
 }
 
+function SuspenseListTest() {
+  return (
+    <>
+      <h1>SuspenseList</h1>
+      <SuspenseList revealOrder="forwards" tail="collapsed">
+        <div>
+          <Suspense fallback={<Fallback1>Loading 1</Fallback1>}>
+            <Primary1>Hello</Primary1>
+          </Suspense>
+        </div>
+        <div>
+          <LoadLater />
+        </div>
+        <div>
+          <Suspense fallback={<Fallback2>Loading 2</Fallback2>}>
+            <Primary2>World</Primary2>
+          </Suspense>
+        </div>
+      </SuspenseList>
+    </>
+  );
+}
+
 function LoadLater() {
-  const [loadChild, setLoadChild] = useState(0);
+  const [loadChild, setLoadChild] = useState(false);
   return (
     <Suspense
       fallback={
